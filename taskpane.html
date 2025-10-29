@@ -158,10 +158,10 @@
 </head>
 <body>
     <div class="container">
-        <h2>Supporting Information <span style="font-size: 11px; color: #666; font-weight: normal;">v1.5</span></h2>
+        <h2>Supporting Information <span style="font-size: 11px; color: #666; font-weight: normal;">v1.7</span></h2>
         
         <div id="noSelectionWarning" class="warning-box" style="display: none;">
-            Please select text in a table cell to add or edit metadata.
+            Please select text or an image to add or edit metadata.
         </div>
         
         <div id="cellInfo" class="cell-info" style="display: none;">
@@ -172,30 +172,26 @@
             <div class="form-group">
                 <label for="linkUrl">Link</label>
                 <input type="text" id="linkUrl" placeholder="https://example.com">
-                <div class="hint">Enter the URL for this content link</div>
             </div>
             
             <div class="form-group">
                 <label for="references">References</label>
                 <textarea id="references" placeholder="Enter citations or references to medical publications"></textarea>
-                <div class="hint">Medical publication references or citations</div>
             </div>
             
             <div class="form-group">
                 <label for="altTags">Alt Tags</label>
                 <input type="text" id="altTags" placeholder="Descriptive alt text for images">
-                <div class="hint">Alternative text for accessibility</div>
             </div>
             
             <div class="form-group">
                 <label for="functionality">Functionality</label>
                 <textarea id="functionality" placeholder="Describe the functionality or behavior"></textarea>
-                <div class="hint">Notes about functionality or behavior</div>
             </div>
             
             <div class="button-group">
                 <button class="btn-primary" id="saveBtn">Save Metadata</button>
-                <button class="btn-danger" id="clearBtn">Clear Metadata</button>
+                <button class="btn-danger" id="clearBtn">Remove Metadata</button>
             </div>
             
             <div id="status" class="status"></div>
@@ -203,11 +199,11 @@
         
         <div class="info-box" style="margin-top: 30px;">
             <strong>How to use:</strong><br>
-            1. Select text in a table cell (highlight the text)<br>
+            1. Select text or an image (click to select)<br>
             2. Metadata will load automatically if it exists<br>
             3. Enter or edit the supportive information<br>
             4. Click "Save Metadata" to store the information<br>
-            5. Click on any text to see its metadata instantly
+            5. Click on any text or image to see its metadata instantly
         </div>
     </div>
     
