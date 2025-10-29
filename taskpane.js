@@ -114,7 +114,7 @@ async function saveMetadata() {
                 contentControl.tag = 'cellMetadata';
                 contentControl.title = 'View Metadata';
                 contentControl.appearance = 'BoundingBox';
-                contentControl.color = '#E8F4FD'; // Light blue background
+                contentControl.color = '#1B9FFF'; // Bright blue background
                 await context.sync();
             }
             
