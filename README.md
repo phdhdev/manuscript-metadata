@@ -1,98 +1,260 @@
-# For Copywriters: Installing the Metadata Manager
+# Figma Code Generator - Word Add-in
 
-## What This Add-in Does
+[![GitHub](https://img.shields.io/badge/GitHub-phdhdev%2Ffigma--code--generator-blue)](https://github.com/phdhdev/figma-code-generator)
 
-Lets you attach hidden information to table cells:
-- **Link** - URLs for text links
-- **References** - Medical publication citations  
-- **Alt Tags** - Image alternative text
-- **Functionality** - Behavior notes
+A Microsoft Word Add-in that generates unique 6-digit Figma codes in the format `XXX-XXX` and inserts them at the cursor position while preserving existing text formatting.
 
-The main content stays clean - supportive info is hidden in a side panel!
+## Features
 
-## Installation (5 minutes)
+- **Generate Unique Codes**: Creates random 6-digit codes in format `123-456`
+- **Document-Wide Uniqueness Check**: Scans the entire document to ensure no duplicate codes
+- **Format Preservation**: Inserts codes using the existing font, font size, and color at cursor position
+- **Real-Time Statistics**: Shows total codes in document and codes generated in current session
+- **User-Friendly Interface**: Clean, modern design with clear status messages
 
-### Step 1: Get the Manifest File
+## How It Works
 
-Your manager will send you a file called `manifest.xml`. Save it somewhere you can find it.
+1. Click "Generate Unique Code" to create a new code
+2. The add-in scans your entire document for existing codes (format: XXX-XXX)
+3. Generates a unique code that doesn't exist in the document
+4. Place your cursor anywhere in the document
+5. Click "Insert at Cursor" to add the code with existing formatting
 
-### Step 2: Open Microsoft Word
+## Installation & Setup
 
-Open Word on your Mac or Windows computer.
+### Prerequisites
 
-### Step 3: Install the Add-in
+- Microsoft Word (Desktop version)
+- Node.js (v14 or higher)
+- npm
 
-1. Click **Insert** in the top menu
-2. Click **Get Add-ins** (or "Office Add-ins")
-3. Click **MY ADD-INS** at the top
-4. Click **Upload My Add-in** at the bottom
-5. Click **Browse** and find the `manifest.xml` file
-6. Click **Upload**
+### Step 1: Install Dependencies
 
-You'll see a success message!
+```bash
+npm install -g office-addin-dev-server
+```
 
-### Step 4: Find the Add-in
+### Step 2: Create Project Structure
 
-1. Look at the **Home** tab in Word's ribbon
-2. Find the **Cell Metadata** section
-3. Click **Show Metadata Panel**
-4. A panel opens on the right side!
+Create a folder for your add-in and place all the files in it:
 
-## How to Use It
+```
+figma-code-generator/
+├── manifest.xml
+├── taskpane.html
+├── taskpane.js
+├── commands.html
+├── package.json
+└── assets/ (optional - for icons)
+```
 
-### Adding Metadata to a Cell
+### Step 3: Create Simple Icons (Optional)
 
-1. Click on any cell in your table
-2. Make sure the metadata panel is open (see Step 4 above)
-3. Fill in the fields you need:
-   - Link (URL)
-   - References (citations)
-   - Alt Tags (for images)
-   - Functionality (notes)
-4. Click **Save Metadata**
-5. Done! The cell now has a subtle box around it
+You can create placeholder icon files or use simple images. Place them in an `assets` folder:
+- `icon-16.png` (16x16 pixels)
+- `icon-32.png` (32x32 pixels)
+- `icon-64.png` (64x64 pixels)
+- `icon-80.png` (80x80 pixels)
 
-### Loading Metadata from a Cell
+### Step 4: Update Manifest
 
-1. Click on a cell that has metadata (you'll see a subtle box)
-2. In the metadata panel, click **Load Metadata**
-3. All the info appears in the fields
-4. Copy what you need!
+Edit `manifest.xml` and change the `<Id>` to a unique GUID. You can generate one at https://guidgenerator.com/
 
-### Clearing Metadata
+```xml
+<Id>YOUR-UNIQUE-GUID-HERE</Id>
+```
 
-1. Click on a cell with metadata
-2. Click **Clear Metadata** in the panel
-3. Confirm when asked
+### Step 5: Start the Development Server
 
-## Tips
+Navigate to your project folder and run:
 
-- **Can't see the panel?** Click "Show Metadata Panel" in the Home tab
-- **Cell has no metadata?** You'll see "No metadata found" when you click Load
-- **Metadata travels with the document** - save the Word file to keep your metadata
-- **Designers won't see the metadata** - just the main content (which is the point!)
+```bash
+npm start
+```
+
+This will start a local server at `https://localhost:3000`
+
+### Step 6: Sideload the Add-in in Word
+
+#### For Windows:
+
+1. Open Word
+2. Go to **Insert** tab → **Get Add-ins** → **My Add-ins** → **Shared Folder**
+3. Browse to your project folder and select `manifest.xml`
+
+#### For Mac:
+
+1. Open Word
+2. Go to **Insert** tab → **Add-ins** → **My Add-ins**
+3. Click "Upload Add-in" and select `manifest.xml`
+
+#### Alternative Method (Network Share):
+
+1. Create a network share folder
+2. Copy `manifest.xml` to the network share
+3. Add the network share path to Word's trusted add-in catalogs
+4. Restart Word and load the add-in from **My Add-ins**
+
+## Usage
+
+### Generating a Code
+
+1. Click the "Generate Unique Code" button in the task pane
+2. The add-in will:
+   - Scan your entire document for existing codes
+   - Generate a random 6-digit code (XXX-XXX format)
+   - Ensure the code is unique (not already in the document)
+   - Display the code in the panel
+
+### Inserting a Code
+
+1. Place your cursor where you want the code inserted
+2. Click "Insert at Cursor"
+3. The code will be inserted with the same formatting as the surrounding text:
+   - Font family (e.g., Arial, Times New Roman)
+   - Font size (e.g., 12pt, 14pt)
+   - Font color (e.g., black, blue, red)
+
+### Statistics
+
+The add-in displays:
+- **Codes in Doc**: Total number of codes currently in the document
+- **Generated**: Number of codes you've generated in this session
+
+## Technical Details
+
+### Code Format
+
+- Format: `XXX-XXX` (e.g., `123-456`, `789-012`)
+- Each part is a 3-digit number (100-999)
+- Total possible combinations: 810,000 unique codes
+
+### Uniqueness Check
+
+The add-in uses Word's built-in search functionality with wildcards:
+- Pattern: `\d{3}-\d{3}` (matches any 6-digit code with hyphen)
+- Searches the entire document body
+- Generates new codes until a unique one is found
+
+### Format Preservation
+
+When inserting code, the add-in:
+1. Reads the current selection's font properties
+2. Inserts the code as text
+3. Applies the original formatting to the new text
 
 ## Troubleshooting
 
-### Add-in doesn't appear after installation
-- Close ALL Word windows
-- Open Word again
-- Check the Home tab ribbon
+### Add-in doesn't appear in Word
 
-### Can't upload manifest
-- Make sure the file is named exactly `manifest.xml`
-- Try saving it to your Desktop first
-- Make sure you have the latest version from your manager
+- Ensure the development server is running (`npm start`)
+- Check that manifest.xml is properly loaded
+- Try restarting Word
 
-### Panel won't open
-- Try clicking "Show Metadata Panel" again
-- Restart Word
-- Contact your manager for help
+### "Unable to generate unique code" error
 
-## Need Help?
+- This occurs if 1000 attempts fail to find a unique code
+- Usually means your document has many codes already
+- Try using a different code format or clearing old codes
 
-Ask your manager or the person who sent you the manifest file!
+### Code doesn't preserve formatting
 
----
+- Make sure you have text selected or cursor in formatted text
+- The add-in copies formatting from the cursor position
+- If at the start of document, default formatting is used
 
-**That's it! You're ready to add metadata to your tables. 🎉**
+### Certificate/SSL errors
+
+- The development server uses self-signed certificates
+- You may need to trust the certificate in your system
+- Follow prompts when starting the server
+
+## Customization
+
+### Change Code Format
+
+Edit the `generateCode()` function in `taskpane.js`:
+
+```javascript
+function generateCode() {
+    // Current: XXX-XXX
+    const part1 = Math.floor(Math.random() * 900) + 100;
+    const part2 = Math.floor(Math.random() * 900) + 100;
+    return `${part1}-${part2}`;
+    
+    // Alternative: XXXX (4 digits, no hyphen)
+    // return String(Math.floor(Math.random() * 9000) + 1000);
+}
+```
+
+And update the search pattern in `getAllCodesInDocument()`:
+
+```javascript
+// Current pattern for XXX-XXX
+const searchResults = body.search("\\d{3}-\\d{3}", { matchWildcards: true });
+
+// Pattern for XXXX (4 digits)
+// const searchResults = body.search("\\d{4}", { matchWildcards: true });
+```
+
+### Change Colors/Styling
+
+Edit the `<style>` section in `taskpane.html` to customize:
+- Button colors
+- Header gradient
+- Font sizes
+- Border radius
+
+### Add Prefix/Suffix
+
+Modify the code generation or insertion:
+
+```javascript
+// In insertCode() function
+const codeWithPrefix = "CODE-" + currentCode;
+const insertedRange = selection.insertText(codeWithPrefix, Word.InsertLocation.replace);
+```
+
+## Development
+
+### Project Structure
+
+- **manifest.xml**: Add-in configuration and metadata
+- **taskpane.html**: User interface layout and styling
+- **taskpane.js**: Core functionality (generation, checking, insertion)
+- **commands.html**: Required by Office.js framework
+- **package.json**: Node.js project configuration
+
+### Key Functions
+
+- `generateCode()`: Creates random XXX-XXX format
+- `getAllCodesInDocument()`: Searches document for existing codes
+- `generateUniqueCode()`: Generates code not in document
+- `insertCode()`: Inserts code with format preservation
+- `updateDocumentStats()`: Updates code count display
+
+## Browser Support
+
+The add-in works in Word on:
+- Windows Desktop
+- Mac Desktop
+- Word Online (with limitations on sideloading)
+
+## License
+
+MIT License - feel free to modify and use as needed!
+
+## Support
+
+For issues with:
+- **Office Add-ins**: https://docs.microsoft.com/office/dev/add-ins/
+- **Word JavaScript API**: https://docs.microsoft.com/javascript/api/word
+- **This Add-in**: https://github.com/phdhdev/figma-code-generator/issues
+
+## Version History
+
+- **1.0.0** (2025): Initial release
+  - Basic code generation
+  - Document-wide uniqueness checking
+  - Format preservation
+  - Statistics display

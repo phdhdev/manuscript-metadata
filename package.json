@@ -1,0 +1,25 @@
+{
+  "name": "figma-code-generator",
+  "version": "1.0.0",
+  "description": "Word Add-in to generate unique 6-digit Figma codes",
+  "main": "taskpane.html",
+  "scripts": {
+    "start": "office-addin-dev-server start manifest.xml",
+    "stop": "office-addin-dev-server stop manifest.xml",
+    "validate": "office-addin-manifest validate manifest.xml"
+  },
+  "keywords": [
+    "Word",
+    "Office Add-in",
+    "Code Generator"
+  ],
+  "author": "phdhdev",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/phdhdev/figma-code-generator"
+  },
+  "devDependencies": {
+    "office-addin-dev-server": "^1.0.0"
+  }
+}

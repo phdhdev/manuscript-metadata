@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Figma Code Generator - Word Add-in</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 50px;
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            text-align: center;
+        }
+        h1 {
+            font-size: 3em;
+            margin-bottom: 20px;
+        }
+        p {
+            font-size: 1.2em;
+            line-height: 1.8;
+            margin-bottom: 15px;
+        }
+        .code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 30px 0;
+            font-family: 'Courier New', monospace;
+        }
+        a {
+            color: #fff;
+            text-decoration: none;
+            border-bottom: 2px solid #fff;
+            padding-bottom: 2px;
+            transition: all 0.3s ease;
+        }
+        a:hover {
+            border-bottom-color: #ffd700;
+            color: #ffd700;
+        }
+        .links {
+            margin-top: 40px;
+        }
+        .links a {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 15px 30px;
+            border-radius: 50px;
+            margin: 10px;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎨 Figma Code Generator</h1>
+        <p>A Microsoft Word Add-in that generates unique 6-digit codes in format XXX-XXX</p>
+        
+        <div class="code">
+            <p><strong>Example Code:</strong> 456-789</p>
+        </div>
+        
+        <p>This add-in helps you generate and insert unique codes directly into your Word documents while preserving your text formatting.</p>
+        
+        <div class="links">
+            <a href="https://github.com/phdhdev/figma-code-generator">View on GitHub</a>
+            <a href="taskpane.html">View Add-in Interface</a>
+        </div>
+        
+        <p style="margin-top: 50px; font-size: 0.9em; opacity: 0.8;">
+            This is a Word Add-in. To use it, install the manifest.xml file in Microsoft Word.
+        </p>
+    </div>
+</body>
+</html>
