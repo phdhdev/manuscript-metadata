@@ -27,21 +27,28 @@ async function checkSelection() {
         await Word.run(async (context) => {
             const selection = context.document.getSelection();
             
-            context.load(selection, 'text');
+            context.load(selection, ['text', 'inlinePictures']);
             await context.sync();
             
-            if (selection.text && selection.text.trim() !== '') {
-                // User has selected some text
+            const hasText = selection.text && selection.text.trim() !== '';
+            const hasImages = selection.inlinePictures && selection.inlinePictures.items.length > 0;
+            
+            if (hasText || hasImages) {
+                // User has selected text or images
                 document.getElementById('noSelectionWarning').style.display = 'none';
                 document.getElementById('cellInfo').style.display = 'block';
                 
-                // Show a preview of the selected text (first 50 chars)
-                const preview = selection.text.length > 50 
-                    ? selection.text.substring(0, 47) + '...' 
-                    : selection.text;
-                document.getElementById('cellLocation').textContent = `"${preview}"`;
+                if (hasImages && !hasText) {
+                    document.getElementById('cellLocation').textContent = `Image selected`;
+                } else if (hasText) {
+                    // Show a preview of the selected text (first 50 chars)
+                    const preview = selection.text.length > 50 
+                        ? selection.text.substring(0, 47) + '...' 
+                        : selection.text;
+                    document.getElementById('cellLocation').textContent = `"${preview}"`;
+                }
             } else {
-                // No text selected
+                // Nothing selected
                 document.getElementById('noSelectionWarning').style.display = 'block';
                 document.getElementById('cellInfo').style.display = 'none';
             }
@@ -70,13 +77,17 @@ async function saveMetadata() {
             const selection = context.document.getSelection();
             const contentControls = selection.contentControls;
             
-            // Check if there's actually text selected
-            context.load(selection, 'text');
+            // Load selection properties
+            context.load(selection, ['text', 'inlinePictures']);
             context.load(contentControls);
             await context.sync();
             
-            if (!selection.text || selection.text.trim() === '') {
-                showStatus('Please select some text in a cell first.', 'error');
+            // Check if there's text or images selected
+            const hasText = selection.text && selection.text.trim() !== '';
+            const hasImages = selection.inlinePictures && selection.inlinePictures.items.length > 0;
+            
+            if (!hasText && !hasImages) {
+                showStatus('Please select text or an image in a cell first.', 'error');
                 return;
             }
             
