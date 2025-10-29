@@ -308,10 +308,26 @@ function clearForm() {
 
 function showStatus(message, type) {
     const statusDiv = document.getElementById('status');
+    
+    // Clear any existing timeout first
+    if (window.statusTimeout) {
+        clearTimeout(window.statusTimeout);
+    }
+    
+    // Reset and show the message
+    statusDiv.style.display = 'none'; // Hide first
+    statusDiv.className = 'status'; // Reset class
+    
+    // Force a reflow to ensure the animation/display triggers
+    void statusDiv.offsetHeight;
+    
+    // Now set the new message
     statusDiv.textContent = message;
     statusDiv.className = `status ${type}`;
+    statusDiv.style.display = 'block';
     
-    setTimeout(() => {
+    // Set timeout to hide after 5 seconds
+    window.statusTimeout = setTimeout(() => {
         statusDiv.className = 'status';
         statusDiv.style.display = 'none';
     }, 5000);
