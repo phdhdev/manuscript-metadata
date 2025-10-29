@@ -1,4 +1,4 @@
-# For Copywriters: Installing the Cell Metadata Manager
+# For Copywriters: Installing the Metadata Manager
 
 ## What This Add-in Does
 
