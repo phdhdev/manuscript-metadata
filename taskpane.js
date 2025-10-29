@@ -196,7 +196,7 @@ async function clearMetadata() {
             
             await context.sync();
             
-            console.log('Found content controls:', contentControls.items.length);
+            showStatus(`Found ${contentControls.items.length} content controls in selection`, 'success');
             
             if (contentControls.items.length === 0) {
                 // Try getting content controls from the entire document and find the one containing our selection
@@ -204,12 +204,15 @@ async function clearMetadata() {
                 allContentControls.load(['items', 'tag', 'id']);
                 await context.sync();
                 
-                console.log('Total content controls in document:', allContentControls.items.length);
+                showStatus(`Total content controls in document: ${allContentControls.items.length}`, 'success');
                 
-                // Check each content control to see if it contains our selection
+                let foundMetadataControl = false;
+                
+                // Check each content control to see if it's a metadata control
                 for (let i = 0; i < allContentControls.items.length; i++) {
                     const cc = allContentControls.items[i];
                     if (cc.tag === 'cellMetadata') {
+                        foundMetadataControl = true;
                         const ccRange = cc.getRange();
                         context.load(ccRange, 'text');
                         await context.sync();
@@ -239,22 +242,28 @@ async function clearMetadata() {
                     }
                 }
                 
+                if (!foundMetadataControl) {
+                    showStatus('No metadata controls found in document', 'error');
+                }
+                
                 clearForm();
-                showStatus('No metadata found. Form cleared.', 'success');
                 return;
             }
             
             // Found content controls in selection
             let cleared = false;
+            let foundCellMetadata = false;
             
             for (let i = 0; i < contentControls.items.length; i++) {
                 const cc = contentControls.items[i];
-                console.log('Checking content control:', cc.tag, cc.id);
+                
+                showStatus(`Checking control with tag: ${cc.tag}`, 'success');
                 
                 if (cc.tag === 'cellMetadata') {
+                    foundCellMetadata = true;
+                    
                     if (confirm('Are you sure you want to clear the metadata for this text?')) {
                         const key = `cellMetadata_${cc.id}`;
-                        console.log('Removing metadata with key:', key);
                         
                         Office.context.document.settings.remove(key);
                         
@@ -262,27 +271,27 @@ async function clearMetadata() {
                         await new Promise((resolve, reject) => {
                             Office.context.document.settings.saveAsync((result) => {
                                 if (result.status === Office.AsyncResultStatus.Succeeded) {
-                                    console.log('Settings saved successfully');
                                     resolve();
                                 } else {
-                                    console.error('Failed to save settings:', result.error);
                                     reject(result.error);
                                 }
                             });
                         });
                         
                         // Delete the content control but keep the text
-                        console.log('Deleting content control...');
                         cc.delete(true);
                         await context.sync();
                         
-                        console.log('Content control deleted');
                         cleared = true;
                         break;
                     } else {
                         return; // User cancelled
                     }
                 }
+            }
+            
+            if (!foundCellMetadata) {
+                showStatus('No cellMetadata tag found in selected controls', 'error');
             }
             
             await context.sync();
@@ -296,7 +305,6 @@ async function clearMetadata() {
             }
         });
     } catch (error) {
-        console.error('Error clearing metadata:', error);
         showStatus('Error clearing metadata: ' + error.message, 'error');
     }
 }
