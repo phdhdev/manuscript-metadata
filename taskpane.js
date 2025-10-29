@@ -68,9 +68,11 @@ async function saveMetadata() {
     try {
         await Word.run(async (context) => {
             const selection = context.document.getSelection();
+            const contentControls = selection.contentControls;
             
             // Check if there's actually text selected
             context.load(selection, 'text');
+            context.load(contentControls);
             await context.sync();
             
             if (!selection.text || selection.text.trim() === '') {
@@ -78,21 +80,33 @@ async function saveMetadata() {
                 return;
             }
             
-            // Store metadata as a custom XML part
             const metadataJson = JSON.stringify(metadata);
+            let contentControl = null;
+            let isExisting = false;
             
-            // Use content control to mark the selected text
-            const contentControl = selection.insertContentControl();
-            contentControl.tag = 'cellMetadata';
-            contentControl.title = 'View Metadata'; // This is what appears in the box
+            // Check if there's already a content control (editing existing metadata)
+            for (let i = 0; i < contentControls.items.length; i++) {
+                const cc = contentControls.items[i];
+                context.load(cc, ['id', 'tag']);
+                await context.sync();
+                
+                if (cc.tag === 'cellMetadata') {
+                    contentControl = cc;
+                    isExisting = true;
+                    break;
+                }
+            }
             
-            // Make it visible with a bounding box
-            contentControl.appearance = 'BoundingBox';
+            // If no existing content control, create a new one
+            if (!contentControl) {
+                contentControl = selection.insertContentControl();
+                contentControl.tag = 'cellMetadata';
+                contentControl.title = 'View Metadata';
+                contentControl.appearance = 'BoundingBox';
+                await context.sync();
+            }
             
-            // Save metadata to document settings with a unique key based on content control ID
-            await context.sync();
-            
-            // Get the content control ID
+            // Get or load the content control ID
             context.load(contentControl, 'id');
             await context.sync();
             
@@ -100,9 +114,23 @@ async function saveMetadata() {
             
             // Save to document settings
             Office.context.document.settings.set(key, metadataJson);
-            await Office.context.document.settings.saveAsync();
             
-            showStatus('Metadata saved successfully!', 'success');
+            // Save settings using proper callback
+            await new Promise((resolve, reject) => {
+                Office.context.document.settings.saveAsync((result) => {
+                    if (result.status === Office.AsyncResultStatus.Succeeded) {
+                        resolve();
+                    } else {
+                        reject(result.error);
+                    }
+                });
+            });
+            
+            if (isExisting) {
+                showStatus('Metadata updated successfully!', 'success');
+            } else {
+                showStatus('Metadata saved successfully!', 'success');
+            }
         });
     } catch (error) {
         console.error('Error saving metadata:', error);
@@ -180,10 +208,20 @@ async function clearMetadata() {
                 if (cc.tag === 'cellMetadata') {
                     const key = `cellMetadata_${cc.id}`;
                     Office.context.document.settings.remove(key);
-                    await Office.context.document.settings.saveAsync();
                     
-                    // Remove the content control but keep the content
-                    cc.delete(true); // true = keep content
+                    // Save settings synchronously using callback
+                    await new Promise((resolve, reject) => {
+                        Office.context.document.settings.saveAsync((result) => {
+                            if (result.status === Office.AsyncResultStatus.Succeeded) {
+                                resolve();
+                            } else {
+                                reject(result.error);
+                            }
+                        });
+                    });
+                    
+                    // Remove the content control but keep the text (true = keep content)
+                    cc.delete(true);
                     
                     cleared = true;
                     break;
