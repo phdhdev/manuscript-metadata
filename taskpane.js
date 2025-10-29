@@ -1,346 +1,186 @@
+/* global Word, Office */
+
 Office.onReady((info) => {
     if (info.host === Office.HostType.Word) {
-        document.getElementById('saveBtn').onclick = saveMetadata;
-        document.getElementById('clearBtn').onclick = clearMetadata;
+        document.getElementById("generateBtn").onclick = generateUniqueCode;
+        document.getElementById("insertBtn").onclick = insertCode;
         
-        // Check for selection when panel loads
-        checkSelection();
-        // Auto-load metadata if any exists
-        loadMetadata();
-        
-        // Monitor selection changes
-        Office.context.document.addHandlerAsync(
-            Office.EventType.DocumentSelectionChanged,
-            onSelectionChanged
-        );
+        // Update document stats on load
+        updateDocumentStats();
     }
 });
 
-function onSelectionChanged() {
-    checkSelection();
-    // Automatically try to load metadata when selection changes
-    loadMetadata();
+let currentCode = null;
+let generatedCount = 0;
+
+/**
+ * Generate a random 6-digit code in format XXX-XXX
+ */
+function generateCode() {
+    const part1 = Math.floor(Math.random() * 900) + 100; // 100-999
+    const part2 = Math.floor(Math.random() * 900) + 100; // 100-999
+    return `${part1}-${part2}`;
 }
 
-async function checkSelection() {
+/**
+ * Search the entire document for existing codes
+ */
+async function getAllCodesInDocument() {
+    return await Word.run(async (context) => {
+        const body = context.document.body;
+        // Word wildcard pattern: [0-9] for digits
+        const searchResults = body.search("[0-9]{3}-[0-9]{3}", { matchWildcards: true });
+        
+        searchResults.load("text");
+        await context.sync();
+        
+        const codes = new Set();
+        for (let i = 0; i < searchResults.items.length; i++) {
+            codes.add(searchResults.items[i].text);
+        }
+        
+        return codes;
+    });
+}
+
+/**
+ * Generate a unique code that doesn't exist in the document
+ */
+async function generateUniqueCode() {
     try {
-        await Word.run(async (context) => {
-            const selection = context.document.getSelection();
+        showStatus("Generating unique code...", "info");
+        disableButtons(true);
+        
+        // Get all existing codes
+        const existingCodes = await getAllCodesInDocument();
+        
+        // Generate a new code
+        let newCode;
+        let attempts = 0;
+        const maxAttempts = 1000;
+        
+        do {
+            newCode = generateCode();
+            attempts++;
             
-            context.load(selection, ['text', 'inlinePictures']);
-            await context.sync();
-            
-            const hasText = selection.text && selection.text.trim() !== '';
-            const hasImages = selection.inlinePictures && selection.inlinePictures.items.length > 0;
-            
-            if (hasText || hasImages) {
-                // User has selected text or images
-                document.getElementById('noSelectionWarning').style.display = 'none';
-                document.getElementById('cellInfo').style.display = 'block';
-                
-                if (hasImages && !hasText) {
-                    document.getElementById('cellLocation').textContent = `Image selected`;
-                } else if (hasText) {
-                    // Show a preview of the selected text (first 50 chars)
-                    const preview = selection.text.length > 50 
-                        ? selection.text.substring(0, 47) + '...' 
-                        : selection.text;
-                    document.getElementById('cellLocation').textContent = `"${preview}"`;
-                }
-            } else {
-                // Nothing selected
-                document.getElementById('noSelectionWarning').style.display = 'block';
-                document.getElementById('cellInfo').style.display = 'none';
+            if (attempts > maxAttempts) {
+                throw new Error("Unable to generate unique code after 1000 attempts");
             }
-        });
+        } while (existingCodes.has(newCode));
+        
+        // Display the code
+        currentCode = newCode;
+        document.getElementById("codeDisplay").textContent = newCode;
+        document.getElementById("codeDisplay").classList.remove("empty");
+        document.getElementById("insertBtn").disabled = false;
+        
+        generatedCount++;
+        document.getElementById("generatedCount").textContent = generatedCount;
+        
+        showStatus(`✓ Generated unique code: ${newCode}`, "success");
+        disableButtons(false);
+        
     } catch (error) {
-        console.log('Error checking selection:', error);
+        showStatus(`Error: ${error.message}`, "error");
+        disableButtons(false);
+        console.error(error);
     }
 }
 
-async function saveMetadata() {
-    const linkUrl = document.getElementById('linkUrl').value;
-    const references = document.getElementById('references').value;
-    const altTags = document.getElementById('altTags').value;
-    const functionality = document.getElementById('functionality').value;
+/**
+ * Insert the generated code at the cursor position with existing formatting
+ */
+async function insertCode() {
+    if (!currentCode) {
+        showStatus("Please generate a code first", "error");
+        return;
+    }
     
-    const metadata = {
-        link: linkUrl,
-        references: references,
-        altTags: altTags,
-        functionality: functionality,
-        timestamp: new Date().toISOString()
-    };
-    
     try {
+        showStatus("Inserting code...", "info");
+        disableButtons(true);
+        
         await Word.run(async (context) => {
+            // Get the current selection/cursor position
             const selection = context.document.getSelection();
-            const contentControls = selection.contentControls;
             
-            // Load selection properties
-            context.load(selection, ['text', 'inlinePictures']);
-            context.load(contentControls);
+            // Load the font properties of the current selection
+            selection.font.load(["name", "size", "color"]);
             await context.sync();
             
-            // Check if there's text or images selected
-            const hasText = selection.text && selection.text.trim() !== '';
-            const hasImages = selection.inlinePictures && selection.inlinePictures.items.length > 0;
+            // Store the current formatting
+            const fontName = selection.font.name;
+            const fontSize = selection.font.size;
+            const fontColor = selection.font.color;
             
-            if (!hasText && !hasImages) {
-                showStatus('Please select text or an image in a cell first.', 'error');
-                return;
-            }
+            // Insert the code at the cursor
+            const insertedRange = selection.insertText(currentCode, Word.InsertLocation.replace);
             
-            const metadataJson = JSON.stringify(metadata);
-            let contentControl = null;
-            let isExisting = false;
+            // Apply the original formatting to the inserted code
+            insertedRange.font.name = fontName;
+            insertedRange.font.size = fontSize;
+            insertedRange.font.color = fontColor;
             
-            // Check if there's already a content control (editing existing metadata)
-            for (let i = 0; i < contentControls.items.length; i++) {
-                const cc = contentControls.items[i];
-                context.load(cc, ['id', 'tag']);
-                await context.sync();
-                
-                if (cc.tag === 'cellMetadata') {
-                    contentControl = cc;
-                    isExisting = true;
-                    break;
-                }
-            }
-            
-            // If no existing content control, create a new one
-            if (!contentControl) {
-                contentControl = selection.insertContentControl();
-                contentControl.tag = 'cellMetadata';
-                contentControl.title = 'View Metadata';
-                contentControl.appearance = 'BoundingBox';
-                contentControl.color = '#1B9FFF'; // Bright blue background
-                await context.sync();
-            }
-            
-            // Get or load the content control ID
-            context.load(contentControl, 'id');
             await context.sync();
-            
-            const key = `cellMetadata_${contentControl.id}`;
-            
-            // Save to document settings
-            Office.context.document.settings.set(key, metadataJson);
-            
-            // Save settings using proper callback
-            await new Promise((resolve, reject) => {
-                Office.context.document.settings.saveAsync((result) => {
-                    if (result.status === Office.AsyncResultStatus.Succeeded) {
-                        resolve();
-                    } else {
-                        reject(result.error);
-                    }
-                });
-            });
-            
-            if (isExisting) {
-                showStatus('Metadata updated successfully!', 'success');
-            } else {
-                showStatus('Metadata saved successfully!', 'success');
-            }
         });
+        
+        showStatus(`✓ Code ${currentCode} inserted successfully!`, "success");
+        
+        // Update stats
+        await updateDocumentStats();
+        
+        // Reset for next generation
+        currentCode = null;
+        document.getElementById("codeDisplay").textContent = "Click Generate";
+        document.getElementById("codeDisplay").classList.add("empty");
+        document.getElementById("insertBtn").disabled = true;
+        
+        disableButtons(false);
+        
     } catch (error) {
-        console.error('Error saving metadata:', error);
-        showStatus('Error saving metadata: ' + error.message, 'error');
+        showStatus(`Error inserting code: ${error.message}`, "error");
+        disableButtons(false);
+        console.error(error);
     }
 }
 
-async function loadMetadata() {
+/**
+ * Update the document statistics
+ */
+async function updateDocumentStats() {
     try {
-        await Word.run(async (context) => {
-            const selection = context.document.getSelection();
-            const contentControls = selection.contentControls;
-            
-            context.load(contentControls);
-            await context.sync();
-            
-            // Look for a content control with cellMetadata tag
-            let foundMetadata = false;
-            
-            for (let i = 0; i < contentControls.items.length; i++) {
-                const cc = contentControls.items[i];
-                context.load(cc, ['id', 'tag']);
-                await context.sync();
-                
-                if (cc.tag === 'cellMetadata') {
-                    const key = `cellMetadata_${cc.id}`;
-                    const metadataJson = Office.context.document.settings.get(key);
-                    
-                    if (metadataJson) {
-                        const metadata = JSON.parse(metadataJson);
-                        
-                        document.getElementById('linkUrl').value = metadata.link || '';
-                        document.getElementById('references').value = metadata.references || '';
-                        document.getElementById('altTags').value = metadata.altTags || '';
-                        document.getElementById('functionality').value = metadata.functionality || '';
-                        
-                        foundMetadata = true;
-                        break;
-                    }
-                }
-            }
-            
-            if (!foundMetadata) {
-                // Silently clear the form - no error message needed
-                clearForm();
-            }
-        });
+        const existingCodes = await getAllCodesInDocument();
+        document.getElementById("totalCodes").textContent = existingCodes.size;
     } catch (error) {
-        console.error('Error loading metadata:', error);
-        // Silently fail - don't show error to user
-        clearForm();
+        console.error("Error updating stats:", error);
     }
 }
 
-async function clearMetadata() {
-    try {
-        await Word.run(async (context) => {
-            const selection = context.document.getSelection();
-            
-            // Get all content controls that intersect with the selection
-            const contentControls = selection.contentControls;
-            contentControls.load(['items', 'tag', 'id', 'text']);
-            
-            await context.sync();
-            
-            showStatus(`Found ${contentControls.items.length} content controls in selection`, 'success');
-            
-            if (contentControls.items.length === 0) {
-                // Try getting content controls from the entire document
-                const allContentControls = context.document.contentControls;
-                allContentControls.load(['items', 'tag', 'id']);
-                await context.sync();
-                
-                showStatus(`Total content controls in document: ${allContentControls.items.length}`, 'success');
-                
-                let foundMetadataControl = false;
-                
-                // Check each content control to see if it's a metadata control
-                for (let i = 0; i < allContentControls.items.length; i++) {
-                    const cc = allContentControls.items[i];
-                    if (cc.tag === 'cellMetadata') {
-                        foundMetadataControl = true;
-                        
-                        const key = `cellMetadata_${cc.id}`;
-                        Office.context.document.settings.remove(key);
-                        
-                        await new Promise((resolve, reject) => {
-                            Office.context.document.settings.saveAsync((result) => {
-                                if (result.status === Office.AsyncResultStatus.Succeeded) {
-                                    resolve();
-                                } else {
-                                    reject(result.error);
-                                }
-                            });
-                        });
-                        
-                        cc.delete(true); // Keep the text
-                        await context.sync();
-                        
-                        clearForm();
-                        showStatus('Metadata cleared successfully!', 'success');
-                        return;
-                    }
-                }
-                
-                if (!foundMetadataControl) {
-                    showStatus('No metadata controls found in document', 'error');
-                }
-                
-                clearForm();
-                return;
-            }
-            
-            // Found content controls in selection
-            let cleared = false;
-            let foundCellMetadata = false;
-            
-            for (let i = 0; i < contentControls.items.length; i++) {
-                const cc = contentControls.items[i];
-                
-                showStatus(`Checking control with tag: ${cc.tag}`, 'success');
-                
-                if (cc.tag === 'cellMetadata') {
-                    foundCellMetadata = true;
-                    
-                    const key = `cellMetadata_${cc.id}`;
-                    
-                    Office.context.document.settings.remove(key);
-                    
-                    // Save settings
-                    await new Promise((resolve, reject) => {
-                        Office.context.document.settings.saveAsync((result) => {
-                            if (result.status === Office.AsyncResultStatus.Succeeded) {
-                                resolve();
-                            } else {
-                                reject(result.error);
-                            }
-                        });
-                    });
-                    
-                    // Delete the content control but keep the text
-                    cc.delete(true);
-                    await context.sync();
-                    
-                    cleared = true;
-                    break;
-                }
-            }
-            
-            if (!foundCellMetadata) {
-                showStatus('No cellMetadata tag found in selected controls', 'error');
-            }
-            
-            await context.sync();
-            
-            if (cleared) {
-                clearForm();
-                showStatus('Metadata cleared successfully!', 'success');
-            } else {
-                clearForm();
-                showStatus('Form cleared.', 'success');
-            }
-        });
-    } catch (error) {
-        showStatus('Error clearing metadata: ' + error.message, 'error');
-    }
-}
-
-function clearForm() {
-    document.getElementById('linkUrl').value = '';
-    document.getElementById('references').value = '';
-    document.getElementById('altTags').value = '';
-    document.getElementById('functionality').value = '';
-}
-
+/**
+ * Show status message
+ */
 function showStatus(message, type) {
-    const statusDiv = document.getElementById('status');
-    
-    // Clear any existing timeout first
-    if (window.statusTimeout) {
-        clearTimeout(window.statusTimeout);
-    }
-    
-    // Reset and show the message
-    statusDiv.style.display = 'none'; // Hide first
-    statusDiv.className = 'status'; // Reset class
-    
-    // Force a reflow to ensure the animation/display triggers
-    void statusDiv.offsetHeight;
-    
-    // Now set the new message
+    const statusDiv = document.getElementById("status");
     statusDiv.textContent = message;
     statusDiv.className = `status ${type}`;
-    statusDiv.style.display = 'block';
     
-    // Set timeout to hide after 5 seconds
-    window.statusTimeout = setTimeout(() => {
-        statusDiv.className = 'status';
-        statusDiv.style.display = 'none';
-    }, 5000);
+    if (type === "success") {
+        setTimeout(() => {
+            statusDiv.style.display = "none";
+        }, 3000);
+    }
+}
+
+/**
+ * Disable/enable buttons during operations
+ */
+function disableButtons(disabled) {
+    document.getElementById("generateBtn").disabled = disabled;
+    
+    // Only disable insert button if we're disabling, or if there's no current code
+    if (disabled) {
+        document.getElementById("insertBtn").disabled = true;
+    } else if (currentCode) {
+        document.getElementById("insertBtn").disabled = false;
+    }
 }
