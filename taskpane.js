@@ -199,7 +199,7 @@ async function clearMetadata() {
             showStatus(`Found ${contentControls.items.length} content controls in selection`, 'success');
             
             if (contentControls.items.length === 0) {
-                // Try getting content controls from the entire document and find the one containing our selection
+                // Try getting content controls from the entire document
                 const allContentControls = context.document.contentControls;
                 allContentControls.load(['items', 'tag', 'id']);
                 await context.sync();
@@ -213,32 +213,26 @@ async function clearMetadata() {
                     const cc = allContentControls.items[i];
                     if (cc.tag === 'cellMetadata') {
                         foundMetadataControl = true;
-                        const ccRange = cc.getRange();
-                        context.load(ccRange, 'text');
+                        
+                        const key = `cellMetadata_${cc.id}`;
+                        Office.context.document.settings.remove(key);
+                        
+                        await new Promise((resolve, reject) => {
+                            Office.context.document.settings.saveAsync((result) => {
+                                if (result.status === Office.AsyncResultStatus.Succeeded) {
+                                    resolve();
+                                } else {
+                                    reject(result.error);
+                                }
+                            });
+                        });
+                        
+                        cc.delete(true); // Keep the text
                         await context.sync();
                         
-                        // Ask user if this is the one they want to clear
-                        if (confirm(`Clear metadata for: "${ccRange.text.substring(0, 50)}..."?`)) {
-                            const key = `cellMetadata_${cc.id}`;
-                            Office.context.document.settings.remove(key);
-                            
-                            await new Promise((resolve, reject) => {
-                                Office.context.document.settings.saveAsync((result) => {
-                                    if (result.status === Office.AsyncResultStatus.Succeeded) {
-                                        resolve();
-                                    } else {
-                                        reject(result.error);
-                                    }
-                                });
-                            });
-                            
-                            cc.delete(true); // Keep the text
-                            await context.sync();
-                            
-                            clearForm();
-                            showStatus('Metadata cleared successfully!', 'success');
-                            return;
-                        }
+                        clearForm();
+                        showStatus('Metadata cleared successfully!', 'success');
+                        return;
                     }
                 }
                 
@@ -262,31 +256,27 @@ async function clearMetadata() {
                 if (cc.tag === 'cellMetadata') {
                     foundCellMetadata = true;
                     
-                    if (confirm('Are you sure you want to clear the metadata for this text?')) {
-                        const key = `cellMetadata_${cc.id}`;
-                        
-                        Office.context.document.settings.remove(key);
-                        
-                        // Save settings
-                        await new Promise((resolve, reject) => {
-                            Office.context.document.settings.saveAsync((result) => {
-                                if (result.status === Office.AsyncResultStatus.Succeeded) {
-                                    resolve();
-                                } else {
-                                    reject(result.error);
-                                }
-                            });
+                    const key = `cellMetadata_${cc.id}`;
+                    
+                    Office.context.document.settings.remove(key);
+                    
+                    // Save settings
+                    await new Promise((resolve, reject) => {
+                        Office.context.document.settings.saveAsync((result) => {
+                            if (result.status === Office.AsyncResultStatus.Succeeded) {
+                                resolve();
+                            } else {
+                                reject(result.error);
+                            }
                         });
-                        
-                        // Delete the content control but keep the text
-                        cc.delete(true);
-                        await context.sync();
-                        
-                        cleared = true;
-                        break;
-                    } else {
-                        return; // User cancelled
-                    }
+                    });
+                    
+                    // Delete the content control but keep the text
+                    cc.delete(true);
+                    await context.sync();
+                    
+                    cleared = true;
+                    break;
                 }
             }
             
