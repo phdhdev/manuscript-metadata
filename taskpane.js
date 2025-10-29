@@ -84,10 +84,10 @@ async function saveMetadata() {
             // Use content control to mark the selected text
             const contentControl = selection.insertContentControl();
             contentControl.tag = 'cellMetadata';
-            contentControl.title = 'Text with Metadata';
+            contentControl.title = 'Metadata'; // This is what appears in the box
             
-            // Make it subtle - just a light highlight, no visible border
-            contentControl.appearance = 'Tags';
+            // Make it visible with a bounding box
+            contentControl.appearance = 'BoundingBox';
             
             // Save metadata to document settings with a unique key based on content control ID
             await context.sync();
