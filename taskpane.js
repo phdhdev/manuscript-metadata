@@ -1,11 +1,12 @@
 Office.onReady((info) => {
     if (info.host === Office.HostType.Word) {
         document.getElementById('saveBtn').onclick = saveMetadata;
-        document.getElementById('loadBtn').onclick = loadMetadata;
         document.getElementById('clearBtn').onclick = clearMetadata;
         
         // Check for selection when panel loads
         checkSelection();
+        // Auto-load metadata if any exists
+        loadMetadata();
         
         // Monitor selection changes
         Office.context.document.addHandlerAsync(
@@ -17,24 +18,30 @@ Office.onReady((info) => {
 
 function onSelectionChanged() {
     checkSelection();
+    // Automatically try to load metadata when selection changes
+    loadMetadata();
 }
 
 async function checkSelection() {
     try {
         await Word.run(async (context) => {
             const selection = context.document.getSelection();
-            const tables = selection.tables;
             
-            context.load(tables);
+            context.load(selection, 'text');
             await context.sync();
             
-            if (tables.items.length > 0) {
-                // User has selected something in a table
+            if (selection.text && selection.text.trim() !== '') {
+                // User has selected some text
                 document.getElementById('noSelectionWarning').style.display = 'none';
                 document.getElementById('cellInfo').style.display = 'block';
-                document.getElementById('cellLocation').textContent = 'Table cell';
+                
+                // Show a preview of the selected text (first 50 chars)
+                const preview = selection.text.length > 50 
+                    ? selection.text.substring(0, 47) + '...' 
+                    : selection.text;
+                document.getElementById('cellLocation').textContent = `"${preview}"`;
             } else {
-                // No table cell selected
+                // No text selected
                 document.getElementById('noSelectionWarning').style.display = 'block';
                 document.getElementById('cellInfo').style.display = 'none';
             }
@@ -61,31 +68,26 @@ async function saveMetadata() {
     try {
         await Word.run(async (context) => {
             const selection = context.document.getSelection();
-            const tables = selection.tables;
             
-            context.load(tables);
+            // Check if there's actually text selected
+            context.load(selection, 'text');
             await context.sync();
             
-            if (tables.items.length === 0) {
-                showStatus('Please select a table cell first.', 'error');
+            if (!selection.text || selection.text.trim() === '') {
+                showStatus('Please select some text in a cell first.', 'error');
                 return;
             }
-            
-            // Get the first cell in the selection
-            const table = tables.items[0];
-            const range = selection;
             
             // Store metadata as a custom XML part
             const metadataJson = JSON.stringify(metadata);
             
-            // Use content control to mark the cell
-            const contentControl = range.insertContentControl();
+            // Use content control to mark the selected text
+            const contentControl = selection.insertContentControl();
             contentControl.tag = 'cellMetadata';
-            contentControl.title = 'Cell with Metadata';
+            contentControl.title = 'Text with Metadata';
             
-            // Store the metadata in the content control's properties
-            // We'll use a custom property approach
-            contentControl.appearance = 'BoundingBox'; // Make it visible but subtle
+            // Make it subtle - just a light highlight, no visible border
+            contentControl.appearance = 'Tags';
             
             // Save metadata to document settings with a unique key based on content control ID
             await context.sync();
@@ -96,7 +98,7 @@ async function saveMetadata() {
             
             const key = `cellMetadata_${contentControl.id}`;
             
-            // Save to document custom XML or settings
+            // Save to document settings
             Office.context.document.settings.set(key, metadataJson);
             await Office.context.document.settings.saveAsync();
             
@@ -137,7 +139,6 @@ async function loadMetadata() {
                         document.getElementById('altTags').value = metadata.altTags || '';
                         document.getElementById('functionality').value = metadata.functionality || '';
                         
-                        showStatus('Metadata loaded successfully!', 'success');
                         foundMetadata = true;
                         break;
                     }
@@ -145,13 +146,14 @@ async function loadMetadata() {
             }
             
             if (!foundMetadata) {
-                showStatus('No metadata found for this cell.', 'error');
+                // Silently clear the form - no error message needed
                 clearForm();
             }
         });
     } catch (error) {
         console.error('Error loading metadata:', error);
-        showStatus('Error loading metadata: ' + error.message, 'error');
+        // Silently fail - don't show error to user
+        clearForm();
     }
 }
 
