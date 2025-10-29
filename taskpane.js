@@ -186,45 +186,102 @@ async function loadMetadata() {
 }
 
 async function clearMetadata() {
-    if (!confirm('Are you sure you want to clear the metadata for this text?')) {
-        return;
-    }
-    
     try {
         await Word.run(async (context) => {
             const selection = context.document.getSelection();
-            const contentControls = selection.contentControls;
             
-            context.load(contentControls);
+            // Get all content controls that intersect with the selection
+            const contentControls = selection.contentControls;
+            contentControls.load(['items', 'tag', 'id', 'text']);
+            
             await context.sync();
             
+            console.log('Found content controls:', contentControls.items.length);
+            
+            if (contentControls.items.length === 0) {
+                // Try getting content controls from the entire document and find the one containing our selection
+                const allContentControls = context.document.contentControls;
+                allContentControls.load(['items', 'tag', 'id']);
+                await context.sync();
+                
+                console.log('Total content controls in document:', allContentControls.items.length);
+                
+                // Check each content control to see if it contains our selection
+                for (let i = 0; i < allContentControls.items.length; i++) {
+                    const cc = allContentControls.items[i];
+                    if (cc.tag === 'cellMetadata') {
+                        const ccRange = cc.getRange();
+                        context.load(ccRange, 'text');
+                        await context.sync();
+                        
+                        // Ask user if this is the one they want to clear
+                        if (confirm(`Clear metadata for: "${ccRange.text.substring(0, 50)}..."?`)) {
+                            const key = `cellMetadata_${cc.id}`;
+                            Office.context.document.settings.remove(key);
+                            
+                            await new Promise((resolve, reject) => {
+                                Office.context.document.settings.saveAsync((result) => {
+                                    if (result.status === Office.AsyncResultStatus.Succeeded) {
+                                        resolve();
+                                    } else {
+                                        reject(result.error);
+                                    }
+                                });
+                            });
+                            
+                            cc.delete(true); // Keep the text
+                            await context.sync();
+                            
+                            clearForm();
+                            showStatus('Metadata cleared successfully!', 'success');
+                            return;
+                        }
+                    }
+                }
+                
+                clearForm();
+                showStatus('No metadata found. Form cleared.', 'success');
+                return;
+            }
+            
+            // Found content controls in selection
             let cleared = false;
             
             for (let i = 0; i < contentControls.items.length; i++) {
                 const cc = contentControls.items[i];
-                context.load(cc, ['id', 'tag']);
-                await context.sync();
+                console.log('Checking content control:', cc.tag, cc.id);
                 
                 if (cc.tag === 'cellMetadata') {
-                    const key = `cellMetadata_${cc.id}`;
-                    Office.context.document.settings.remove(key);
-                    
-                    // Save settings synchronously using callback
-                    await new Promise((resolve, reject) => {
-                        Office.context.document.settings.saveAsync((result) => {
-                            if (result.status === Office.AsyncResultStatus.Succeeded) {
-                                resolve();
-                            } else {
-                                reject(result.error);
-                            }
+                    if (confirm('Are you sure you want to clear the metadata for this text?')) {
+                        const key = `cellMetadata_${cc.id}`;
+                        console.log('Removing metadata with key:', key);
+                        
+                        Office.context.document.settings.remove(key);
+                        
+                        // Save settings
+                        await new Promise((resolve, reject) => {
+                            Office.context.document.settings.saveAsync((result) => {
+                                if (result.status === Office.AsyncResultStatus.Succeeded) {
+                                    console.log('Settings saved successfully');
+                                    resolve();
+                                } else {
+                                    console.error('Failed to save settings:', result.error);
+                                    reject(result.error);
+                                }
+                            });
                         });
-                    });
-                    
-                    // Remove the content control but keep the text (true = keep content)
-                    cc.delete(true);
-                    
-                    cleared = true;
-                    break;
+                        
+                        // Delete the content control but keep the text
+                        console.log('Deleting content control...');
+                        cc.delete(true);
+                        await context.sync();
+                        
+                        console.log('Content control deleted');
+                        cleared = true;
+                        break;
+                    } else {
+                        return; // User cancelled
+                    }
                 }
             }
             
@@ -234,7 +291,6 @@ async function clearMetadata() {
                 clearForm();
                 showStatus('Metadata cleared successfully!', 'success');
             } else {
-                // If no metadata found, just clear the form anyway
                 clearForm();
                 showStatus('Form cleared.', 'success');
             }
