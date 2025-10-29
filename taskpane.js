@@ -84,7 +84,7 @@ async function saveMetadata() {
             // Use content control to mark the selected text
             const contentControl = selection.insertContentControl();
             contentControl.tag = 'cellMetadata';
-            contentControl.title = 'Metadata'; // This is what appears in the box
+            contentControl.title = 'View Metadata'; // This is what appears in the box
             
             // Make it visible with a bounding box
             contentControl.appearance = 'BoundingBox';
@@ -158,7 +158,7 @@ async function loadMetadata() {
 }
 
 async function clearMetadata() {
-    if (!confirm('Are you sure you want to clear the metadata for this cell?')) {
+    if (!confirm('Are you sure you want to clear the metadata for this text?')) {
         return;
     }
     
@@ -196,7 +196,9 @@ async function clearMetadata() {
                 clearForm();
                 showStatus('Metadata cleared successfully!', 'success');
             } else {
-                showStatus('No metadata found to clear.', 'error');
+                // If no metadata found, just clear the form anyway
+                clearForm();
+                showStatus('Form cleared.', 'success');
             }
         });
     } catch (error) {
